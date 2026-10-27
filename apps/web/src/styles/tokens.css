@@ -1,0 +1,24 @@
+/*
+ * Tasarım tokenları — RGB bileşenleri olarak tutulur ki Tailwind opacity ile çalışabilsin.
+ * Kaynak palet:
+ *  background #F9FAFB, surface #FFFFFF, surface-muted #F3F4F6,
+ *  text-primary #111827, text-secondary #6B7280, border #E5E7EB,
+ *  accent #B89B72, accent-hover #9E8059,
+ *  success #15803D, danger #B91C1C, warning #A16207
+ */
+:root {
+  --color-background: 249 250 251;
+  --color-surface: 255 255 255;
+  --color-surface-muted: 243 244 246;
+  --color-text-primary: 17 24 39;
+  --color-text-secondary: 107 114 128;
+  --color-border: 229 231 235;
+  --color-accent: 184 155 114;
+  --color-accent-hover: 158 128 89;
+  --color-success: 21 128 61;
+  --color-danger: 185 28 28;
+  --color-warning: 161 98 7;
+
+  --header-height: 4rem;
+  --announcement-height: 2.25rem;
+}

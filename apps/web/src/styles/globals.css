@@ -1,0 +1,58 @@
+@import './tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background font-sans text-primary text-[15px] leading-relaxed;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-medium tracking-tight text-primary;
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
+  }
+  ::selection {
+    @apply bg-accent/30;
+  }
+  img {
+    @apply select-none;
+  }
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-container px-4 sm:px-6 lg:px-8;
+  }
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-primary;
+  }
+  .help-text {
+    @apply mt-1.5 text-xs text-secondary;
+  }
+  .error-text {
+    @apply mt-1.5 flex items-start gap-1 text-xs text-danger;
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+}
