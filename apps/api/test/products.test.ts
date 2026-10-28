@@ -11,7 +11,7 @@ describe('Ürün kataloğu', () => {
     const res = await request(await getApp()).get('/api/v1/health');
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe('ok');
-    expect(res.body.data.dataSource).toBe('memory');
+    expect(res.body.data.dataSource).toBe('prisma');
   });
 
   it('ürünleri sayfalı listeler ve facet döner', async () => {

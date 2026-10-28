@@ -1,5 +1,13 @@
 import { Prisma, PrismaClient } from '@prisma/client';
-import type { AddressSnapshot, ProductStatus } from '@shop/shared';
+import type {
+  AddressSnapshot,
+  OrderStatus,
+  PaymentMethod,
+  PaymentStatus,
+  ProductStatus,
+  Size,
+  UserRole,
+} from '@shop/shared';
 import { env } from '../../../config/env';
 import { buildSeedData } from '../memory/seed';
 import type {
@@ -12,6 +20,7 @@ import type {
   ProductEntity,
   ProductImageEntity,
   ProductVariantEntity,
+  UserEntity,
 } from '../entities';
 import type {
   AddressRepository,
@@ -42,66 +51,117 @@ function sizeIndex(size: string) {
   return i === -1 ? 99 : i;
 }
 
-function asAddress(json: Prisma.JsonValue): AddressSnapshot {
-  return json as unknown as AddressSnapshot;
+function mapUser(u: any): UserEntity {
+  return {
+    ...u,
+    role: u.role as UserRole,
+  };
 }
 
-function withProduct(p: ProductEntity & { images: ProductImageEntity[]; variants: ProductVariantEntity[] }): ProductWithRelations {
+function mapVariant(v: any): ProductVariantEntity {
+  return {
+    ...v,
+    size: v.size as Size,
+  };
+}
+
+function withProduct(p: any): ProductWithRelations {
   return {
     ...p,
-    images: [...p.images].sort((a, b) => a.sortOrder - b.sortOrder),
-    variants: [...p.variants],
+    status: p.status as ProductStatus,
+    images: [...(p.images ?? [])].sort((a: any, b: any) => a.sortOrder - b.sortOrder),
+    variants: (p.variants ?? []).map(mapVariant),
   };
 }
 
-function withOrder(o: OrderEntity & { items: OrderItemEntity[]; statusHistory: OrderStatusHistoryEntity[]; payment: PaymentEntity | null }): OrderWithRelations {
+function asAddress(val: unknown): AddressSnapshot {
+  if (typeof val === 'string') {
+    try {
+      return JSON.parse(val) as AddressSnapshot;
+    } catch {
+      return {} as AddressSnapshot;
+    }
+  }
+  return (val ?? {}) as AddressSnapshot;
+}
+
+function mapPayment(p: any): PaymentEntity {
+  let processedEventIds: string[] = [];
+  if (typeof p.processedEventIds === 'string') {
+    try {
+      processedEventIds = JSON.parse(p.processedEventIds);
+    } catch {
+      processedEventIds = [];
+    }
+  } else if (Array.isArray(p.processedEventIds)) {
+    processedEventIds = p.processedEventIds;
+  }
   return {
-    ...o,
-    shippingAddress: o.shippingAddress,
-    items: o.items,
-    statusHistory: [...o.statusHistory].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()),
-    payment: o.payment,
+    ...p,
+    status: p.status as PaymentStatus,
+    processedEventIds,
   };
 }
 
-function mapOrder(row: {
-  id: string;
-  orderNumber: string;
-  userId: string | null;
-  guestEmail: string | null;
-  status: OrderEntity['status'];
-  paymentStatus: OrderEntity['paymentStatus'];
-  paymentMethod: OrderEntity['paymentMethod'];
-  subtotalCents: number;
-  discountCents: number;
-  shippingCents: number;
-  totalCents: number;
-  shippingAddress: Prisma.JsonValue;
-  note: string | null;
-  trackingNumber: string | null;
-  idempotencyKey: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  items: OrderItemEntity[];
-  statusHistory: OrderStatusHistoryEntity[];
-  payment: PaymentEntity | null;
-}): OrderWithRelations {
-  return withOrder({ ...row, shippingAddress: asAddress(row.shippingAddress) });
+function mapStatusHistory(h: any): OrderStatusHistoryEntity {
+  return {
+    ...h,
+    fromStatus: (h.fromStatus as OrderStatus) ?? null,
+    toStatus: h.toStatus as OrderStatus,
+  };
+}
+
+function mapOrderItem(item: any): OrderItemEntity {
+  return {
+    ...item,
+    size: item.size as Size,
+  };
+}
+
+function mapOrder(row: any): OrderWithRelations {
+  return {
+    id: row.id,
+    orderNumber: row.orderNumber,
+    userId: row.userId,
+    guestEmail: row.guestEmail,
+    status: row.status as OrderStatus,
+    paymentStatus: row.paymentStatus as PaymentStatus,
+    paymentMethod: row.paymentMethod as PaymentMethod,
+    subtotalCents: row.subtotalCents,
+    discountCents: row.discountCents,
+    shippingCents: row.shippingCents,
+    totalCents: row.totalCents,
+    shippingAddress: asAddress(row.shippingAddress),
+    note: row.note,
+    trackingNumber: row.trackingNumber,
+    idempotencyKey: row.idempotencyKey,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    items: (row.items ?? []).map(mapOrderItem),
+    statusHistory: (row.statusHistory ?? [])
+      .map(mapStatusHistory)
+      .sort((a: any, b: any) => a.createdAt.getTime() - b.createdAt.getTime()),
+    payment: row.payment ? mapPayment(row.payment) : null,
+  };
 }
 
 class PrismaUserRepository implements UserRepository {
   constructor(private p: Client) {}
-  findById(id: string) {
-    return this.p.user.findUnique({ where: { id } });
+  async findById(id: string): Promise<UserEntity | null> {
+    const row = await this.p.user.findUnique({ where: { id } });
+    return row ? mapUser(row) : null;
   }
-  findByEmail(email: string) {
-    return this.p.user.findUnique({ where: { email: email.toLowerCase() } });
+  async findByEmail(email: string): Promise<UserEntity | null> {
+    const row = await this.p.user.findUnique({ where: { email: email.toLowerCase() } });
+    return row ? mapUser(row) : null;
   }
-  create(data: Parameters<UserRepository['create']>[0]) {
-    return this.p.user.create({ data: { ...data, email: data.email.toLowerCase() } });
+  async create(data: Parameters<UserRepository['create']>[0]): Promise<UserEntity> {
+    const row = await this.p.user.create({ data: { ...data, email: data.email.toLowerCase() } });
+    return mapUser(row);
   }
-  update(id: string, data: Parameters<UserRepository['update']>[1]) {
-    return this.p.user.update({ where: { id }, data });
+  async update(id: string, data: Parameters<UserRepository['update']>[1]): Promise<UserEntity> {
+    const row = await this.p.user.update({ where: { id }, data });
+    return mapUser(row);
   }
   async list(params: { q?: string; role?: UserEntityRole; page: number; pageSize: number }) {
     const where: Prisma.UserWhereInput = {
@@ -109,19 +169,24 @@ class PrismaUserRepository implements UserRepository {
       ...(params.q
         ? {
             OR: [
-              { email: { contains: params.q, mode: 'insensitive' } },
-              { firstName: { contains: params.q, mode: 'insensitive' } },
-              { lastName: { contains: params.q, mode: 'insensitive' } },
-              { phone: { contains: params.q, mode: 'insensitive' } },
+              { email: { contains: params.q } },
+              { firstName: { contains: params.q } },
+              { lastName: { contains: params.q } },
+              { phone: { contains: params.q } },
             ],
           }
         : {}),
     };
-    const [items, total] = await Promise.all([
-      this.p.user.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (params.page - 1) * params.pageSize, take: params.pageSize }),
+    const [rows, total] = await Promise.all([
+      this.p.user.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (params.page - 1) * params.pageSize,
+        take: params.pageSize,
+      }),
       this.p.user.count({ where }),
     ]);
-    return { items, total };
+    return { items: rows.map(mapUser), total };
   }
   count(params?: { role?: UserEntityRole }) {
     return this.p.user.count({ where: params?.role ? { role: params.role } : {} });
@@ -225,20 +290,29 @@ class PrismaProductRepository implements ProductRepository {
       ...(params.excludeIds?.length ? { id: { notIn: params.excludeIds } } : {}),
       ...(params.ids ? { id: { in: params.ids } } : {}),
       ...(params.minPriceCents != null ? { priceCents: { gte: params.minPriceCents } } : {}),
-      ...(params.maxPriceCents != null ? { priceCents: { ...(params.minPriceCents != null ? { gte: params.minPriceCents } : {}), lte: params.maxPriceCents } } : {}),
+      ...(params.maxPriceCents != null
+        ? {
+            priceCents: {
+              ...(params.minPriceCents != null ? { gte: params.minPriceCents } : {}),
+              lte: params.maxPriceCents,
+            },
+          }
+        : {}),
       ...(params.isNew ? { isNew: true } : {}),
       ...(params.isFeatured ? { isFeatured: true } : {}),
       ...(params.inStock ? { variants: { some: { isActive: true, stockQuantity: { gt: 0 } } } } : {}),
-      ...(params.sizes?.length ? { variants: { some: { isActive: true, stockQuantity: { gt: 0 }, size: { in: params.sizes as never } } } } : {}),
+      ...(params.sizes?.length
+        ? { variants: { some: { isActive: true, stockQuantity: { gt: 0 }, size: { in: params.sizes as never } } } }
+        : {}),
       ...(params.colors?.length
-        ? { variants: { some: { isActive: true, OR: params.colors.map((c) => ({ color: { equals: c, mode: 'insensitive' as const } })) } } }
+        ? { variants: { some: { isActive: true, OR: params.colors.map((c) => ({ color: { equals: c } })) } } }
         : {}),
       ...(params.q
         ? {
             OR: [
-              { name: { contains: params.q, mode: 'insensitive' } },
-              { description: { contains: params.q, mode: 'insensitive' } },
-              { slug: { contains: params.q, mode: 'insensitive' } },
+              { name: { contains: params.q } },
+              { description: { contains: params.q } },
+              { slug: { contains: params.q } },
             ],
           }
         : {}),
@@ -247,7 +321,9 @@ class PrismaProductRepository implements ProductRepository {
     let items = rows.map((r) => withProduct(r));
     if (params.onSale) items = items.filter((p) => p.compareAtPriceCents != null && p.compareAtPriceCents > p.priceCents);
     const disc = (p: ProductEntity) =>
-      p.compareAtPriceCents && p.compareAtPriceCents > p.priceCents ? (p.compareAtPriceCents - p.priceCents) / p.compareAtPriceCents : 0;
+      p.compareAtPriceCents && p.compareAtPriceCents > p.priceCents
+        ? (p.compareAtPriceCents - p.priceCents) / p.compareAtPriceCents
+        : 0;
     switch (params.sort) {
       case 'newest':
         items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
@@ -265,7 +341,12 @@ class PrismaProductRepository implements ProductRepository {
         items.sort((a, b) => b.salesCount - a.salesCount);
         break;
       default:
-        items.sort((a, b) => Number(b.isFeatured) - Number(a.isFeatured) || b.salesCount - a.salesCount || b.createdAt.getTime() - a.createdAt.getTime());
+        items.sort(
+          (a, b) =>
+            Number(b.isFeatured) - Number(a.isFeatured) ||
+            b.salesCount - a.salesCount ||
+            b.createdAt.getTime() - a.createdAt.getTime(),
+        );
     }
     const total = items.length;
     const start = (params.page - 1) * params.pageSize;
@@ -312,15 +393,28 @@ class PrismaProductRepository implements ProductRepository {
     await this.p.productImage.deleteMany({ where: { productId } });
     if (images.length) await this.p.productImage.createMany({ data: images.map((i) => ({ ...i, productId })) });
   }
-  async syncVariants(productId: string, variants: (Omit<ProductVariantEntity, 'productId' | 'createdAt' | 'updatedAt' | 'id'> & { id?: string })[]) {
+  async syncVariants(
+    productId: string,
+    variants: (Omit<ProductVariantEntity, 'productId' | 'createdAt' | 'updatedAt' | 'id'> & { id?: string })[],
+  ) {
     const existing = await this.p.productVariant.findMany({ where: { productId } });
     const keep = new Set<string>();
     for (const input of variants) {
-      const match = (input.id && existing.find((v) => v.id === input.id)) || existing.find((v) => v.size === input.size && v.color.toLowerCase() === input.color.toLowerCase());
+      const match =
+        (input.id && existing.find((v) => v.id === input.id)) ||
+        existing.find((v) => v.size === input.size && v.color.toLowerCase() === input.color.toLowerCase());
       if (match) {
         await this.p.productVariant.update({
           where: { id: match.id },
-          data: { sku: input.sku, size: input.size, color: input.color, colorHex: input.colorHex, stockQuantity: input.stockQuantity, priceOverrideCents: input.priceOverrideCents, isActive: input.isActive },
+          data: {
+            sku: input.sku,
+            size: input.size,
+            color: input.color,
+            colorHex: input.colorHex,
+            stockQuantity: input.stockQuantity,
+            priceOverrideCents: input.priceOverrideCents,
+            isActive: input.isActive,
+          },
         });
         keep.add(match.id);
       } else {
@@ -339,7 +433,9 @@ class PrismaProductRepository implements ProductRepository {
     await this.p.cartItem.deleteMany({ where: { productId: id } });
   }
   count(params?: { statuses?: ProductStatus[] }) {
-    return this.p.product.count({ where: { deletedAt: null, ...(params?.statuses ? { status: { in: params.statuses } } : {}) } });
+    return this.p.product.count({
+      where: { deletedAt: null, ...(params?.statuses ? { status: { in: params.statuses } } : {}) },
+    });
   }
   async incrementSales(productId: string, qty: number) {
     await this.p.product.update({ where: { id: productId }, data: { salesCount: { increment: qty } } });
@@ -370,29 +466,36 @@ class PrismaProductRepository implements ProductRepository {
 
 class PrismaVariantRepository implements VariantRepository {
   constructor(private p: Client) {}
-  findById(id: string) {
-    return this.p.productVariant.findUnique({ where: { id } });
+  async findById(id: string): Promise<ProductVariantEntity | null> {
+    const row = await this.p.productVariant.findUnique({ where: { id } });
+    return row ? mapVariant(row) : null;
   }
-  findManyByIds(ids: string[]) {
-    if (!ids.length) return Promise.resolve([]);
-    return this.p.productVariant.findMany({ where: { id: { in: ids } } });
+  async findManyByIds(ids: string[]): Promise<ProductVariantEntity[]> {
+    if (!ids.length) return [];
+    const rows = await this.p.productVariant.findMany({ where: { id: { in: ids } } });
+    return rows.map(mapVariant);
   }
-  findBySku(sku: string) {
-    return this.p.productVariant.findUnique({ where: { sku } });
+  async findBySku(sku: string): Promise<ProductVariantEntity | null> {
+    const row = await this.p.productVariant.findUnique({ where: { sku } });
+    return row ? mapVariant(row) : null;
   }
   async decrementStock(id: string, qty: number) {
-    const r = await this.p.productVariant.updateMany({ where: { id, stockQuantity: { gte: qty } }, data: { stockQuantity: { decrement: qty } } });
+    const r = await this.p.productVariant.updateMany({
+      where: { id, stockQuantity: { gte: qty } },
+      data: { stockQuantity: { decrement: qty } },
+    });
     return r.count === 1;
   }
   async incrementStock(id: string, qty: number) {
     await this.p.productVariant.update({ where: { id }, data: { stockQuantity: { increment: qty } } });
   }
-  listLowStock(threshold: number, limit: number) {
-    return this.p.productVariant.findMany({
+  async listLowStock(threshold: number, limit: number): Promise<ProductVariantEntity[]> {
+    const rows = await this.p.productVariant.findMany({
       where: { isActive: true, stockQuantity: { lte: threshold }, product: { deletedAt: null, status: 'ACTIVE' } },
       orderBy: { stockQuantity: 'asc' },
       take: limit,
     });
+    return rows.map(mapVariant);
   }
   countLowStock(threshold: number) {
     return this.p.productVariant.count({
@@ -454,11 +557,23 @@ const orderInclude = { items: true, statusHistory: { orderBy: { createdAt: 'asc'
 
 class PrismaOrderRepository implements OrderRepository {
   constructor(private p: Client) {}
-  async create(order: Omit<OrderEntity, 'id' | 'createdAt' | 'updatedAt'>, items: Omit<OrderItemEntity, 'id' | 'orderId'>[], initialHistory: Omit<OrderStatusHistoryEntity, 'id' | 'orderId' | 'createdAt'>) {
+  async create(
+    order: Omit<OrderEntity, 'id' | 'createdAt' | 'updatedAt'>,
+    items: Omit<OrderItemEntity, 'id' | 'orderId'>[],
+    initialHistory: Omit<OrderStatusHistoryEntity, 'id' | 'orderId' | 'createdAt'>,
+  ): Promise<OrderWithRelations> {
+    const addr = order.shippingAddress;
+    const customerName = `${addr.firstName ?? ''} ${addr.lastName ?? ''}`.trim() || null;
+    const customerPhone = addr.phone ?? null;
+    const customerAddress = `${addr.line ?? ''}, ${addr.district ?? ''}/${addr.city ?? ''}`.trim() || null;
+
     const row = await this.p.order.create({
       data: {
         ...order,
-        shippingAddress: order.shippingAddress as unknown as Prisma.InputJsonValue,
+        shippingAddress: JSON.stringify(order.shippingAddress),
+        customerName,
+        customerPhone,
+        customerAddress,
         items: { create: items },
         statusHistory: { create: initialHistory },
       },
@@ -466,11 +581,11 @@ class PrismaOrderRepository implements OrderRepository {
     });
     return mapOrder(row);
   }
-  async findById(id: string) {
+  async findById(id: string): Promise<OrderWithRelations | null> {
     const row = await this.p.order.findUnique({ where: { id }, include: orderInclude });
     return row ? mapOrder(row) : null;
   }
-  async findByOrderNumber(orderNumber: string) {
+  async findByOrderNumber(orderNumber: string): Promise<OrderWithRelations | null> {
     const row = await this.p.order.findUnique({ where: { orderNumber }, include: orderInclude });
     return row ? mapOrder(row) : null;
   }
@@ -482,30 +597,46 @@ class PrismaOrderRepository implements OrderRepository {
       ...(params.q
         ? {
             OR: [
-              { orderNumber: { contains: params.q, mode: 'insensitive' } },
-              { guestEmail: { contains: params.q, mode: 'insensitive' } },
-              { user: { is: { email: { contains: params.q, mode: 'insensitive' } } } },
+              { orderNumber: { contains: params.q } },
+              { guestEmail: { contains: params.q } },
+              { customerName: { contains: params.q } },
+              { user: { is: { email: { contains: params.q } } } },
             ],
           }
         : {}),
     };
     const [rows, total] = await Promise.all([
-      this.p.order.findMany({ where, include: orderInclude, orderBy: { createdAt: 'desc' }, skip: (params.page - 1) * params.pageSize, take: params.pageSize }),
+      this.p.order.findMany({
+        where,
+        include: orderInclude,
+        orderBy: { createdAt: 'desc' },
+        skip: (params.page - 1) * params.pageSize,
+        take: params.pageSize,
+      }),
       this.p.order.count({ where }),
     ]);
     return { items: rows.map(mapOrder), total };
   }
-  async update(id: string, data: Partial<Omit<OrderEntity, 'id' | 'createdAt'>>) {
+  async update(id: string, data: Partial<Omit<OrderEntity, 'id' | 'createdAt'>>): Promise<OrderWithRelations> {
     const { shippingAddress, ...rest } = data;
+    const updateData: any = { ...rest };
+    if (shippingAddress) {
+      updateData.shippingAddress = typeof shippingAddress === 'string' ? shippingAddress : JSON.stringify(shippingAddress);
+      const addr = asAddress(shippingAddress);
+      updateData.customerName = `${addr.firstName ?? ''} ${addr.lastName ?? ''}`.trim() || null;
+      updateData.customerPhone = addr.phone ?? null;
+      updateData.customerAddress = `${addr.line ?? ''}, ${addr.district ?? ''}/${addr.city ?? ''}`.trim() || null;
+    }
     const row = await this.p.order.update({
       where: { id },
-      data: { ...rest, ...(shippingAddress ? { shippingAddress: shippingAddress as unknown as Prisma.InputJsonValue } : {}) },
+      data: updateData,
       include: orderInclude,
     });
     return mapOrder(row);
   }
-  addStatusHistory(data: Omit<OrderStatusHistoryEntity, 'id' | 'createdAt'>) {
-    return this.p.orderStatusHistory.create({ data });
+  async addStatusHistory(data: Omit<OrderStatusHistoryEntity, 'id' | 'createdAt'>): Promise<OrderStatusHistoryEntity> {
+    const row = await this.p.orderStatusHistory.create({ data });
+    return mapStatusHistory(row);
   }
   async stats() {
     const orders = await this.p.order.findMany({ select: { status: true, paymentStatus: true, totalCents: true, createdAt: true } });
@@ -555,35 +686,60 @@ class PrismaOrderRepository implements OrderRepository {
 
 class PrismaPaymentRepository implements PaymentRepository {
   constructor(private p: Client) {}
-  create(data: Omit<PaymentEntity, 'id' | 'createdAt' | 'updatedAt'>) {
-    return this.p.payment.create({ data });
+  async create(data: Omit<PaymentEntity, 'id' | 'createdAt' | 'updatedAt'>): Promise<PaymentEntity> {
+    const row = await this.p.payment.create({
+      data: {
+        ...data,
+        processedEventIds: JSON.stringify(data.processedEventIds ?? []),
+      },
+    });
+    return mapPayment(row);
   }
-  findById(id: string) {
-    return this.p.payment.findUnique({ where: { id } });
+  async findById(id: string): Promise<PaymentEntity | null> {
+    const row = await this.p.payment.findUnique({ where: { id } });
+    return row ? mapPayment(row) : null;
   }
-  findByOrderId(orderId: string) {
-    return this.p.payment.findUnique({ where: { orderId } });
+  async findByOrderId(orderId: string): Promise<PaymentEntity | null> {
+    const row = await this.p.payment.findUnique({ where: { orderId } });
+    return row ? mapPayment(row) : null;
   }
-  findByProviderPaymentId(providerPaymentId: string) {
-    return this.p.payment.findUnique({ where: { providerPaymentId } });
+  async findByProviderPaymentId(providerPaymentId: string): Promise<PaymentEntity | null> {
+    const row = await this.p.payment.findUnique({ where: { providerPaymentId } });
+    return row ? mapPayment(row) : null;
   }
-  update(id: string, data: Partial<Omit<PaymentEntity, 'id' | 'createdAt'>>) {
-    return this.p.payment.update({ where: { id }, data });
+  async update(id: string, data: Partial<Omit<PaymentEntity, 'id' | 'createdAt'>>): Promise<PaymentEntity> {
+    const updateData: any = { ...data };
+    if (data.processedEventIds) {
+      updateData.processedEventIds = JSON.stringify(data.processedEventIds);
+    }
+    const row = await this.p.payment.update({ where: { id }, data: updateData });
+    return mapPayment(row);
   }
 }
 
 class PrismaAuditLogRepository implements AuditLogRepository {
   constructor(private p: Client) {}
   async create(data: Omit<AuditLogEntity, 'id' | 'createdAt'>): Promise<AuditLogEntity> {
-    const row = await this.p.auditLog.create({ data: { ...data, metadata: data.metadata === null ? Prisma.JsonNull : (data.metadata as Prisma.InputJsonValue) } });
-    return { ...row, metadata: (row.metadata as Record<string, unknown> | null) ?? null };
+    const row = await this.p.auditLog.create({
+      data: {
+        ...data,
+        metadata: data.metadata ? JSON.stringify(data.metadata) : null,
+      },
+    });
+    return { ...row, metadata: row.metadata ? (typeof row.metadata === 'string' ? JSON.parse(row.metadata) : row.metadata) : null };
   }
   async list(params: { page: number; pageSize: number }) {
     const [rows, total] = await Promise.all([
       this.p.auditLog.findMany({ orderBy: { createdAt: 'desc' }, skip: (params.page - 1) * params.pageSize, take: params.pageSize }),
       this.p.auditLog.count(),
     ]);
-    return { items: rows.map((l) => ({ ...l, metadata: (l.metadata as Record<string, unknown> | null) ?? null })), total };
+    return {
+      items: rows.map((l) => ({
+        ...l,
+        metadata: l.metadata ? (typeof l.metadata === 'string' ? JSON.parse(l.metadata) : l.metadata) : null,
+      })),
+      total,
+    };
   }
 }
 
@@ -634,13 +790,30 @@ export async function seedPrisma(
   opts?: { wipe?: boolean; adminEmail?: string; adminPassword?: string; demoCustomerEmail?: string; demoCustomerPassword?: string },
 ) {
   if (opts?.wipe) {
-    await prisma.$executeRawUnsafe(`
-      TRUNCATE TABLE
-        "IdempotencyRecord", "AuditLog", "OrderStatusHistory", "Payment", "OrderItem", "Order",
-        "Favorite", "CartItem", "Cart", "ProductVariant", "ProductImage", "Product", "Category",
-        "Address", "PasswordResetToken", "RefreshToken", "User"
-      RESTART IDENTITY CASCADE
-    `);
+    const tables = [
+      'IdempotencyRecord',
+      'AuditLog',
+      'OrderStatusHistory',
+      'Payment',
+      'OrderItem',
+      'Order',
+      'Favorite',
+      'CartItem',
+      'Cart',
+      'ProductVariant',
+      'ProductImage',
+      'Product',
+      'Category',
+      'Address',
+      'PasswordResetToken',
+      'RefreshToken',
+      'User',
+    ];
+    await prisma.$executeRawUnsafe('PRAGMA foreign_keys = OFF;');
+    for (const t of tables) {
+      await prisma.$executeRawUnsafe(`DELETE FROM "${t}";`);
+    }
+    await prisma.$executeRawUnsafe('PRAGMA foreign_keys = ON;');
   }
   const data = buildSeedData({
     adminEmail: opts?.adminEmail ?? env.ADMIN_EMAIL,
@@ -657,9 +830,6 @@ export async function seedPrisma(
 }
 
 export async function createPrismaDatabase(): Promise<Database> {
-  if (!env.DATABASE_URL) {
-    throw new Error('DATA_SOURCE=prisma için DATABASE_URL zorunludur. docker compose up -d db && npx prisma migrate deploy && npx prisma db seed');
-  }
   const prisma = new PrismaClient({ log: env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'] });
   await prisma.$connect();
   const count = await prisma.category.count();
