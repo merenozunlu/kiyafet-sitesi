@@ -62,7 +62,7 @@ export function Footer() {
       </div>
       <div className="border-t border-border">
         <div className="container-page flex flex-col items-start justify-between gap-3 py-6 text-xs text-secondary sm:flex-row sm:items-center">
-          <p>© {new Date().getFullYear()} Atölye Giyim. Tüm hakları saklıdır.</p>
+          <p>© {new Date().getFullYear()} Muka. Tüm hakları saklıdır.</p>
           <p>Bu bir demo mağazadır; ödeme işlemleri test ortamında gerçekleştirilir.</p>
         </div>
       </div>

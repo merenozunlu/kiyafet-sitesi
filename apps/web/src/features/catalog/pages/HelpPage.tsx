@@ -30,8 +30,8 @@ const topics: Record<string, { title: string; sections: { heading: string; body:
   iletisim: {
     title: 'İletişim',
     sections: [
-      { heading: 'E-posta', body: 'destek@atolye.example — Hafta içi 09:00–18:00 arasında yanıt veriyoruz.' },
-      { heading: 'Adres', body: 'Atölye Giyim Ltd. Şti. — Bu bir demo mağazadır.' },
+      { heading: 'E-posta', body: 'destek@muka.example — Hafta içi 09:00–18:00 arasında yanıt veriyoruz.' },
+      { heading: 'Adres', body: 'Muka Ltd. Şti. — Bu bir demo mağazadır.' },
     ],
   },
 };

@@ -12,7 +12,7 @@ export const commerceConfig = {
   bankTransfer: {
     bankName: 'Örnek Bank A.Ş.',
     iban: 'TR00 0000 0000 0000 0000 0000 00',
-    accountHolder: 'Atölye Giyim Ltd. Şti.',
+    accountHolder: 'Muka Ltd. Şti.',
   },
   /** Sipariş numarası ön eki. */
   orderNumberPrefix: 'AT',
