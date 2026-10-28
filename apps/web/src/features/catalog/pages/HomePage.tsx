@@ -74,7 +74,7 @@ const trust = [
 ];
 
 export default function HomePage() {
-  usePageTitle('Atölye — Sade ve kaliteli giyim');
+  usePageTitle('Muka — Sade ve kaliteli giyim');
   const { data, isLoading, isError, error, refetch } = useQuery({ queryKey: queryKeys.home, queryFn: ({ signal }) => productService.home(signal) });
 
   return (

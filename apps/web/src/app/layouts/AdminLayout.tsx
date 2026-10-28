@@ -51,7 +51,7 @@ export function AdminLayout() {
     <div className="flex min-h-screen bg-background">
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-border bg-surface px-4 py-6 lg:flex">
         <div className="mb-8 px-3">
-          <span className="font-display text-2xl font-semibold">Atölye</span>
+          <span className="font-display text-2xl font-semibold">Muka</span>
           <span className="ml-2 rounded bg-accent/15 px-1.5 py-0.5 text-[11px] font-medium text-accent-hover">Yönetim</span>
         </div>
         <SidebarNav />
@@ -74,7 +74,7 @@ export function AdminLayout() {
           <button type="button" onClick={() => setOpen(true)} className="-ml-2 flex h-10 w-10 items-center justify-center rounded-md" aria-label="Menüyü aç">
             <Menu className="h-5 w-5" />
           </button>
-          <span className="font-display text-xl font-semibold">Atölye Yönetim</span>
+          <span className="font-display text-xl font-semibold">Muka Yönetim</span>
         </header>
         <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <Suspense fallback={<PageSpinner />}>
