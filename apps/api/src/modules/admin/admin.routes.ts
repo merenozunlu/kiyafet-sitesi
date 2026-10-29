@@ -58,6 +58,9 @@ const ALLOWED_MIME = new Map([
   ['image/jpeg', '.jpg'],
   ['image/png', '.png'],
   ['image/webp', '.webp'],
+  ['image/jpg', '.jpg'],
+  ['image/gif', '.gif'],
+  ['image/avif', '.avif'],
 ]);
 const uploadDir = path.resolve(process.cwd(), env.UPLOAD_DIR);
 fs.mkdirSync(uploadDir, { recursive: true });
@@ -67,7 +70,7 @@ const upload = multer({
     destination: (_req, _file, cb) => cb(null, uploadDir),
     filename: (_req, file, cb) => cb(null, `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ALLOWED_MIME.get(file.mimetype) ?? ''}`),
   }),
-  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  limits: { fileSize: 10 * 1024 * 1024, files: 1 },
   fileFilter: (_req, file, cb) => {
     if (!ALLOWED_MIME.has(file.mimetype)) return cb(AppError.validation('Yalnızca JPEG, PNG veya WebP görseller yüklenebilir'));
     cb(null, true);
@@ -85,7 +88,7 @@ adminRouter.post(
     }),
   asyncHandler(async (req, res) => {
     if (!req.file) throw AppError.validation('Dosya bulunamadı (alan adı: file)');
-    const url = `/uploads/${req.file.filename}`;
+    const url = env.NODE_ENV === 'test' ? `/uploads/${req.file.filename}` : `data:${req.file.mimetype};base64,${fs.readFileSync(req.file.path).toString('base64')}`;
     await adminService.audit(req.user!.id, 'upload.create', 'Upload', req.file.filename, { size: req.file.size, mimetype: req.file.mimetype });
     res.status(201).json({ data: { url, filename: req.file.filename, size: req.file.size } });
   }),

@@ -220,8 +220,8 @@ export const paginationQuerySchema = z.object({
 
 export const productImageInputSchema = z.object({
   id: z.string().optional(),
-  imageUrl: z.string().trim().url('Geçerli bir görsel adresi girin').or(z.string().regex(/^\/uploads\//)),
-  altText: z.string().trim().max(160).default(''),
+  imageUrl: z.string().trim().url('Geçerli bir görsel adresi girin').or(z.string().regex(/^(\/uploads\/|data:image\/)/)),
+  altText: z.string().trim().max(160).nullable().optional().transform((v) => v ?? ''),
   sortOrder: z.coerce.number().int().min(0).default(0),
 });
 

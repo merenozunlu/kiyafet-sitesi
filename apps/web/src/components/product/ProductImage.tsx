@@ -1,6 +1,19 @@
 import { useEffect, useState, type ImgHTMLAttributes } from 'react';
 import { ImageOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { API_URL } from '@/lib/api-client';
+
+function resolveImageSrc(src?: string | null): string | undefined {
+  if (!src) return undefined;
+  if (src.startsWith('/uploads/')) {
+    try {
+      return `${new URL(API_URL).origin}${src}`;
+    } catch {
+      return src;
+    }
+  }
+  return src;
+}
 
 export interface ProductImageProps extends Omit<ImgHTMLAttributes<HTMLImageElement>, 'src' | 'onError' | 'onLoad'> {
   src?: string | null;
@@ -34,7 +47,7 @@ export function ProductImage({ src, alt, className, imgClassName, fit = 'cover',
         </div>
       ) : (
         <img
-          src={src ?? undefined}
+          src={resolveImageSrc(src)}
           alt={alt}
           loading={loading}
           decoding="async"
