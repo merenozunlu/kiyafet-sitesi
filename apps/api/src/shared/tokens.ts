@@ -50,8 +50,8 @@ export const REFRESH_COOKIE_NAME = 'refresh_token';
 export function refreshCookieOptions(expires?: Date) {
   return {
     httpOnly: true,
-    secure: env.COOKIE_SECURE,
-    sameSite: 'lax' as const,
+    secure: env.COOKIE_SECURE || env.NODE_ENV === 'production',
+    sameSite: (env.COOKIE_SECURE || env.NODE_ENV === 'production' ? 'none' : 'lax') as 'none' | 'lax',
     path: `${env.API_BASE_PATH}/auth`,
     ...(expires ? { expires } : {}),
   };

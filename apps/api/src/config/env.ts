@@ -16,8 +16,8 @@ const envSchema = z.object({
   DATA_SOURCE: z.enum(['memory', 'prisma']).default('prisma'),
   DATA_PERSIST_FILE: z.string().optional(),
   DATABASE_URL: z.string().default('file:./dev.db'),
-  JWT_ACCESS_SECRET: z.string().min(16, 'JWT_ACCESS_SECRET en az 16 karakter olmalıdır'),
-  JWT_REFRESH_SECRET: z.string().min(16, 'JWT_REFRESH_SECRET en az 16 karakter olmalıdır'),
+  JWT_ACCESS_SECRET: z.string().min(16, 'JWT_ACCESS_SECRET en az 16 karakter olmalıdır').default('dev-access-secret-change-me-please-32chars'),
+  JWT_REFRESH_SECRET: z.string().min(16, 'JWT_REFRESH_SECRET en az 16 karakter olmalıdır').default('dev-refresh-secret-change-me-please-32chars'),
   ACCESS_TOKEN_TTL: z.string().default('15m'),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(7),
   COOKIE_SECURE: z
