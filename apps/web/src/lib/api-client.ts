@@ -1,6 +1,12 @@
 import type { ApiErrorBody, ApiErrorDetail, AuthResponseDto } from '@shop/shared';
 
-export const API_URL: string = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:4000/api/v1';
+function resolveApiUrl(raw: string | undefined): string {
+  const trimmed = raw?.trim().replace(/\/+$/, '');
+  if (!trimmed) return 'http://localhost:4000/api/v1';
+  return trimmed.endsWith('/api/v1') ? trimmed : `${trimmed}/api/v1`;
+}
+
+export const API_URL: string = resolveApiUrl(import.meta.env.VITE_API_URL as string | undefined);
 
 export class ApiError extends Error {
   readonly status: number;
@@ -128,7 +134,7 @@ async function parseError(res: Response): Promise<ApiError> {
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, query, headers = {}, signal, timeoutMs = 15000, skipAuthRefresh, anonymous, formData } = options;
+  const { method = 'GET', body, query, headers = {}, signal, timeoutMs = 45000, skipAuthRefresh, anonymous, formData } = options;
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(new DOMException('Zaman aşımı', 'TimeoutError')), timeoutMs);

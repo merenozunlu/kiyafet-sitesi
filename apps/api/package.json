@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch --clear-screen=false src/server.ts",
-    "build": "tsc --noEmit -p tsconfig.json",
+    "build": "prisma generate --schema=prisma/schema.prisma && prisma db push --schema=prisma/schema.prisma && tsc --noEmit -p tsconfig.json",
     "start": "cross-env NODE_ENV=production tsx src/server.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
@@ -25,7 +25,10 @@
     "multer": "^2.0.1",
     "pino": "^9.4.0",
     "pino-http": "^10.3.0",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "prisma": "^5.20.0",
+    "tsx": "^4.19.1",
+    "cross-env": "^7.0.3"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

@@ -33,7 +33,15 @@ export function createApp() {
   );
   app.use(
     cors({
-      origin: env.CORS_ORIGIN.split(',').map((o) => o.trim()),
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        const normalized = origin.replace(/\/+$/, '');
+        const allowed = env.CORS_ORIGIN.split(',').map((o) => o.trim().replace(/\/+$/, ''));
+        if (allowed.includes('*') || allowed.includes(normalized) || normalized.endsWith('.vercel.app') || /^https?:\/\/localhost(:\d+)?$/.test(normalized)) {
+          return callback(null, true);
+        }
+        return callback(null, false);
+      },
       credentials: true,
       methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'X-Requested-With'],
