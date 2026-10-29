@@ -36,7 +36,7 @@ function toForm(p: ProductDetailDto): FormValues {
     status: p.status,
     isFeatured: p.isFeatured,
     isNew: p.isNew,
-    images: p.images.map((i) => ({ id: i.id, imageUrl: i.imageUrl, altText: i.altText, sortOrder: i.sortOrder })),
+    images: p.images.map((i) => ({ id: i.id, imageUrl: i.imageUrl, altText: i.altText ?? '', sortOrder: i.sortOrder })),
     variants: p.variants.map((v) => ({ id: v.id, sku: v.sku, size: v.size, color: v.color, colorHex: v.colorHex ?? '', stockQuantity: v.stockQuantity, priceOverrideCents: null, isActive: v.isActive })),
   };
 }
@@ -139,7 +139,7 @@ export default function AdminProductFormPage() {
                   Mağazada gör
                 </Link>
               )}
-              <Button type="submit" loading={save.isPending} disabled={isEdit && !formState.isDirty}>
+              <Button type="submit" loading={save.isPending}>
                 {isEdit ? 'Kaydet' : 'Ürünü Oluştur'}
               </Button>
             </>
@@ -196,7 +196,7 @@ export default function AdminProductFormPage() {
                 <input
                   ref={fileInput}
                   type="file"
-                  accept="image/jpeg,image/png,image/webp"
+                  accept="image/*"
                   className="sr-only"
                   onChange={(e) => {
                     const f = e.target.files?.[0];
@@ -366,12 +366,29 @@ function UrlAdder({ onAdd }: { onAdd: (url: string) => void }) {
   const [url, setUrl] = useState('');
   return (
     <div className="flex gap-2">
-      <Input label="Görsel URL" hideLabel placeholder="https://… (URL ile ekle)" value={url} onChange={(e) => setUrl(e.target.value)} containerClassName="flex-1" className="h-9 text-sm" />
+      <Input
+        label="Görsel URL"
+        hideLabel
+        placeholder="https://… (URL ile ekle)"
+        value={url}
+        onChange={(e) => setUrl(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            if (/^https?:\/\//.test(url.trim())) {
+              onAdd(url.trim());
+              setUrl('');
+            }
+          }
+        }}
+        containerClassName="flex-1"
+        className="h-9 text-sm"
+      />
       <Button
         type="button"
         size="sm"
         variant="outline"
-        disabled={!/^https?:\/\//.test(url)}
+        disabled={!/^https?:\/\//.test(url.trim())}
         onClick={() => {
           onAdd(url.trim());
           setUrl('');

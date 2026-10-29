@@ -51,7 +51,7 @@ export function createApp() {
   // Webhook ham gövdeye ihtiyaç duyar; JSON parser'ı raw body saklayacak şekilde yapılandır
   app.use(
     express.json({
-      limit: '1mb',
+      limit: '15mb',
       verify: (req, _res, buf) => {
         (req as express.Request & { rawBody?: Buffer }).rawBody = buf;
       },
